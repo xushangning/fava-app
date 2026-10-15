@@ -1,0 +1,57 @@
+name: Build
+
+# Pushes to any branch, including those of pull requests, are built, except
+# pushes that only change Markdown files. There is no pull_request trigger:
+# electron-builder skips code signing in pull request builds, and an unsigned
+# app does not run on Apple silicon.
+on:
+  workflow_dispatch:
+  push:
+    paths-ignore:
+      - "**.md"
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    env:
+      UV_PYTHON: "3.13"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "lts/*"
+      - run: npm ci
+      - name: Build the Fava server with PyInstaller
+        run: npm run build:fava && build/dist/fava/fava --version
+      - name: Build the zipped app
+        run: npx electron-builder --mac zip --arm64 --publish never
+      - name: Unzip and check the app
+        run: |
+          ditto -x -k build/app/*.zip "$RUNNER_TEMP/unzipped"
+          APP="$RUNNER_TEMP/unzipped/Fava.app"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          ICON=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIconFile" "$APP/Contents/Info.plist")
+          test -s "$APP/Contents/Resources/${ICON%.icns}.icns"
+          test -s "$APP/Contents/Resources/Assets.car"
+      # Upload the app before the tests so that it is available even if they fail.
+      # It is already zipped, so it is uploaded as is (named after the file).
+      - uses: actions/upload-artifact@v7
+        with:
+          path: build/app/*.zip
+          archive: false
+          if-no-files-found: error
+      - name: Test the app from source
+        run: npx playwright test
+      - name: Test the unzipped app
+        run: npx playwright test
+        env:
+          APP_EXECUTABLE: ${{ runner.temp }}/unzipped/Fava.app/Contents/MacOS/Fava

@@ -1,0 +1,63 @@
+{
+  "name": "fava-app",
+  "productName": "Fava",
+  "version": "0.0.0",
+  "description": "Fava (Beancount web UI) packaged as a standalone macOS app",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "author": {
+    "name": "Shangning Xu",
+    "email": "32517059+xushangning@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/xushangning/fava-app#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xushangning/fava-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xushangning/fava-app/issues"
+  },
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:fava": "uv run --no-project --isolated --with-requirements requirements.txt pyinstaller --clean --noconfirm --distpath build/dist --workpath build/work fava.spec"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "io.github.xushangning.fava-app",
+    "productName": "Fava",
+    "directories": {
+      "output": "build/app",
+      "buildResources": "resources"
+    },
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/dist/fava",
+        "to": "fava"
+      }
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "identity": "-",
+      "icon": "resources/Fava.icon"
+    },
+    "linux": {
+      "target": "dir"
+    }
+  }
+}
