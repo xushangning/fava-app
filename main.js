@@ -133,6 +133,8 @@ async function openLedger(file) {
   } finally {
     previous?.kill();
   }
+  // The pages of the previous file are gone with its Fava server.
+  win.webContents.navigationHistory.clear();
   win.show();
 }
 
@@ -221,6 +223,23 @@ function buildMenu() {
       },
       { role: "editMenu" },
       { role: "viewMenu" },
+      {
+        label: "History",
+        submenu: [
+          {
+            id: "back",
+            label: "Back",
+            accelerator: "CmdOrCtrl+[",
+            click: () => win?.webContents.navigationHistory.goBack(),
+          },
+          {
+            id: "forward",
+            label: "Forward",
+            accelerator: "CmdOrCtrl+]",
+            click: () => win?.webContents.navigationHistory.goForward(),
+          },
+        ],
+      },
       { role: "windowMenu" },
     ]),
   );
