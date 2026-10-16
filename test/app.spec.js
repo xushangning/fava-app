@@ -227,3 +227,42 @@ fromSource("a last opened file that is gone is forgotten", async () => {
   expect(errors).toHaveLength(0);
   await app.close();
 });
+
+test("the history shortcuts go back and forward within a file", async () => {
+  const app = await launch(userDataDir(), [
+    path.join(DATA, "example.beancount"),
+  ]);
+  const page = await app.firstWindow();
+  await expect(page).toHaveURL(/\/example\/income_statement\//);
+  await page.getByRole("link", { name: "Balance Sheet" }).click();
+  await expect(page).toHaveURL(/\/example\/balance_sheet\//);
+
+  // Playwright's key presses go straight to the page and bypass the menu, so
+  // check the shortcuts of the menu items and click them instead.
+  const history = (id) =>
+    app.evaluate(({ Menu }, itemId) => {
+      const item = Menu.getApplicationMenu().getMenuItemById(itemId);
+      item.click();
+      return item.accelerator;
+    }, id);
+  expect(await history("back")).toBe("CmdOrCtrl+[");
+  await expect(page).toHaveURL(/\/example\/income_statement\//);
+  await expect(
+    page.getByRole("heading", { name: "Example›Income Statement" }),
+  ).toBeVisible();
+  expect(await history("forward")).toBe("CmdOrCtrl+]");
+  await expect(page).toHaveURL(/\/example\/balance_sheet\//);
+
+  // Opening another file starts a new history: the previous file's Fava
+  // server is gone.
+  await menuOpen(app, path.join(DATA, "errors.beancount"));
+  await expect(page).toHaveURL(/\/errors\//);
+  await expect
+    .poll(() =>
+      app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0].webContents.navigationHistory.canGoBack(),
+      ),
+    )
+    .toBe(false);
+  await app.close();
+});
